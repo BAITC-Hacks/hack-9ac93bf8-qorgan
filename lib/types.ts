@@ -63,6 +63,8 @@ export type SearchResponse = {
   pipeline: PipelineStats;
   reasonCounts: Record<RejectionReason, number>;
   message: string;
+  availabilityNote: string | null;
+  rankingNote: string | null;
   shortfall: { requested: 3; found: number; explanation: string } | null;
   availableElsewhere: { city: Contractor["city"]; count: number }[];
 };

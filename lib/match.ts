@@ -95,6 +95,26 @@ function countReasons(rejected: RejectedCandidate[]): Record<RejectionReason, nu
   return counts;
 }
 
+function availabilityNoteFor(
+  busyOnly: Contractor[], hypotheticalTop3: Contractor[], input: SearchInput, allBusy: boolean,
+): string | null {
+  if (!busyOnly.length) return null;
+  const date = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" })
+    .format(new Date(`${input.date}T00:00:00Z`));
+  const label = (profile: Contractor) => `${profile.anon_name} (${money(profile.price_from_kzt)})`;
+  if (allBusy) {
+    return `Все профили каталога заняты ${date}. По остальным условиям подходят ${busyOnly.length}: ${busyOnly.map(label).join(", ")}.`;
+  }
+  const displaced = hypotheticalTop3.filter((profile) => busyOnly.some((busy) => busy.id === profile.id));
+  const others = busyOnly.filter((profile) => !displaced.some((busy) => busy.id === profile.id));
+  const notes = displaced.map((profile) =>
+    `Профиль ${label(profile)} прошёл бы по всем условиям и вошёл бы в тройку, но занят ${date}.`);
+  if (others.length) {
+    notes.push(`Ещё ${others.length} подходят по остальным условиям, но заняты ${date}: ${others.map(label).join(", ")}.`);
+  }
+  return notes.join(" ");
+}
+
 export function matchContractors(contractors: Contractor[], input: SearchInput): SearchResponse {
   const catalog = contractors.filter(
     (contractor) => contractor.city === input.city && contractor.categories.includes(input.category),
@@ -110,6 +130,19 @@ export function matchContractors(contractors: Contractor[], input: SearchInput):
   }
 
   const reasonCounts = countReasons(rejected);
+  const compare = (a: Contractor, b: Contractor) => {
+    if (a.price_from_kzt !== b.price_from_kzt) return a.price_from_kzt - b.price_from_kzt;
+    if (input.durationHours && a.max_hours !== b.max_hours) {
+      return (b.max_hours ?? Number.MAX_SAFE_INTEGER) - (a.max_hours ?? Number.MAX_SAFE_INTEGER);
+    }
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  };
+  eligible.sort(compare);
+  const busyIds = new Set(rejected.filter((item) => item.reasons.length === 1 && item.reasons[0] === "busy")
+    .map((item) => item.id));
+  const busyOnly = catalog.filter((profile) => busyIds.has(profile.id)).sort(compare);
+  // Counterfactual ranking explains availability without adding busy profiles to results.
+  const hypotheticalTop3 = [...eligible, ...busyOnly].sort(compare).slice(0, 3);
   const base = {
     rejected,
     pipeline,
@@ -117,6 +150,8 @@ export function matchContractors(contractors: Contractor[], input: SearchInput):
     results: [] as ResultCard[],
     shortfall: null as SearchResponse["shortfall"],
     availableElsewhere: [] as SearchResponse["availableElsewhere"],
+    availabilityNote: availabilityNoteFor(busyOnly, hypotheticalTop3, input, reasonCounts.busy === catalog.length),
+    rankingNote: null as string | null,
   };
 
   if (catalog.length === 0) {
@@ -149,26 +184,23 @@ export function matchContractors(contractors: Contractor[], input: SearchInput):
     };
   }
 
-  eligible.sort((a, b) => {
-    if (a.price_from_kzt !== b.price_from_kzt) return a.price_from_kzt - b.price_from_kzt;
-    if (input.durationHours && a.max_hours !== b.max_hours) {
-      return (b.max_hours ?? Number.MAX_SAFE_INTEGER) - (a.max_hours ?? Number.MAX_SAFE_INTEGER);
-    }
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
   const top3 = eligible.slice(0, 3);
+  const rankingNote = eligible.length > 3
+    ? `Подходят ${eligible.length} из ${catalog.length}. Показаны 3 с наименьшей ценой; при равной цене ${input.durationHours ? "сначала больший запас часов, затем " : ""}порядок по ID. Также подходят: ${eligible.slice(3).map((profile) => `${profile.anon_name} (${money(profile.price_from_kzt)})`).join(", ")}.`
+    : null;
   const results = top3.map((contractor) => cardFor(contractor, top3, input));
   const shortfall = results.length < 3
     ? {
         requested: 3 as const,
         found: results.length,
-        explanation: `Найдено ${results.length} из 3 вариантов. ${reasonSummary(rejected)}`,
+        explanation: `Найдено ${results.length} из 3 вариантов. В городе ${input.city} всего ${catalog.length} профилей категории «${input.category}». ${reasonSummary(rejected)}`,
       }
     : null;
   return {
     ...base,
     status: "matched",
     results,
+    rankingNote,
     shortfall,
     message: `Найдено: ${results.length}.`,
   };

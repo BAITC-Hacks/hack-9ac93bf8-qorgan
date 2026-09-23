@@ -133,6 +133,8 @@ export default function SearchForm({ categories }: { categories: string[] }) {
           <h2>{result.status === "matched" ? result.message : result.status === "no_category" ? "Категории нет" : "Подходящих нет"}</h2>
           {result.status !== "matched" && <p className="notice">{result.message}</p>}
           {result.shortfall && <p className="notice">{result.shortfall.explanation}</p>}
+          {result.availabilityNote && <p className="notice">{result.availabilityNote}</p>}
+          {result.rankingNote && <p className="notice">{result.rankingNote}</p>}
           {result.status === "no_category" && result.availableElsewhere.length > 0 && (
             <p className="notice">Категория есть в других городах: {result.availableElsewhere.map((item) => `${item.city} — ${item.count}`).join("; ")}.</p>
           )}

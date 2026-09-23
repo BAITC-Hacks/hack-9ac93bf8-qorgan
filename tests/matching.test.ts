@@ -120,3 +120,47 @@ test("unknown categories fail validation while known categories absent in a city
   const known = searchSchema.parse({ ...demoA, category: "Декоратор" });
   assert.equal(matchContractors(contractors, known).status, "no_category");
 });
+
+const demoD: SearchInput = {
+  city: "Алматы", date: "2026-09-30", eventType: "корпоратив", category: "Ведущий", budgetKzt: 1_000_000,
+};
+
+test("D1 explains the busy-only top-three candidate and remaining eligible ranking", () => {
+  const result = matchContractors(contractors, demoD);
+  assert.equal(result.status, "matched");
+  assert.equal(result.pipeline.eligible, 6);
+  assert.deepEqual(result.results.map((card) => card.id), ["HK-88430", "HK-44923", "HK-35215"]);
+  assert.match(result.availabilityNote!, /Аня Форджер \(700\s000 ₸\).*вошёл бы в тройку.*30 сентября/);
+  assert.match(result.rankingNote!, /Подходят 6 из 10/);
+  assert.match(result.rankingNote!, /Сон Гоку.*Буллма.*Хаул/);
+  assert.deepEqual(result, matchContractors(contractors, demoD));
+});
+
+test("D2 distinguishes busy-only displacement from other busy and multi-reason profiles", () => {
+  const result = matchContractors(contractors, { ...demoD, date: "2026-10-10" });
+  assert.deepEqual(result.results.map((card) => card.id), ["HK-88430", "HK-29829", "HK-27222"]);
+  assert.match(result.availabilityNote!, /Мицури Канроджи.*вошёл бы в тройку.*10 октября/);
+  assert.match(result.availabilityNote!, /Ещё 2.*Кики.*Буллма/);
+  assert.doesNotMatch(result.availabilityNote!, /Эмилия/);
+  assert.deepEqual(result.rejected.find((item) => item.id === "HK-42352")?.reasons, ["busy", "format"]);
+});
+
+test("December distinguishes all busy profiles from those passing every other condition", () => {
+  const result = matchContractors(contractors, {
+    ...demoD, date: "2026-12-19", eventType: "свадьба", category: "Банкетный зал", budgetKzt: 3_000_000,
+  });
+  assert.equal(result.status, "no_eligible");
+  assert.equal(result.reasonCounts.busy, 7);
+  assert.match(result.availabilityNote!, /Все профили каталога заняты 19 декабря/);
+  assert.match(result.availabilityNote!, /По остальным условиям подходят 3: Хината Хьюга.*Иноскэ Хашибира.*Шинобу Кочо/);
+  assert.equal(result.rankingNote, null);
+});
+
+test("availability notes include busy-only candidates outside the hypothetical top three", () => {
+  const result = matchContractors(contractors, { ...demoA, date: "2026-09-25" });
+  const busyOnly = result.rejected.filter((item) => item.reasons.length === 1 && item.reasons[0] === "busy");
+  for (const profile of busyOnly) assert.ok(result.availabilityNote?.includes(profile.anon_name));
+  for (const profile of result.rejected.filter((item) => item.reasons.length > 1)) {
+    assert.ok(!result.availabilityNote?.includes(profile.anon_name));
+  }
+});
