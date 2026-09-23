@@ -50,7 +50,11 @@ export type ResultCard = Pick<
   | "synthetic"
   | "city_imputed"
   | "price_imputed"
-> & { explanation: string };
+> & {
+  explanation: string;
+  explanationSource: "ai" | "fallback";
+  explanationEvidence: string | null;
+};
 
 export type SearchResponse = {
   status: "matched" | "no_category" | "no_eligible";

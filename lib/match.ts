@@ -1,4 +1,5 @@
 import type { SearchInput } from "./search";
+import { deterministicExplanation } from "./explanations";
 import type {
   Contractor,
   PipelineStats,
@@ -52,26 +53,7 @@ function pipelineFor(catalog: Contractor[], input: SearchInput): PipelineStats {
   };
 }
 
-function excerpt(description: string): string {
-  const compact = description.replace(/\s+/g, " ").trim();
-  if (compact.length <= 120) return compact;
-  const part = compact.slice(0, 120);
-  return `${part.slice(0, part.lastIndexOf(" "))}…`;
-}
-
-function cardFor(contractor: Contractor, input: SearchInput): ResultCard {
-  const facts = [
-    `На ${input.date} свободен для «${input.eventType}»`,
-    `цена от ${money(contractor.price_from_kzt)} укладывается в бюджет ${money(input.budgetKzt)}`,
-  ];
-  if (input.language) facts.push(`работает на языке: ${input.language}`);
-  if (input.durationHours) {
-    facts.push(
-      contractor.max_hours === null
-        ? "работа не ограничена временем присутствия на площадке"
-        : `доступно до ${contractor.max_hours} ч при запросе ${input.durationHours} ч`,
-    );
-  }
+function cardFor(contractor: Contractor, top3: readonly Contractor[], input: SearchInput): ResultCard {
   return {
     id: contractor.id,
     anon_name: contractor.anon_name,
@@ -83,7 +65,9 @@ function cardFor(contractor: Contractor, input: SearchInput): ResultCard {
     synthetic: contractor.synthetic,
     city_imputed: contractor.city_imputed,
     price_imputed: contractor.price_imputed,
-    explanation: `${facts.join("; ")}. В описании: «${excerpt(contractor.description)}».`,
+    explanation: deterministicExplanation(contractor, top3, input),
+    explanationSource: "fallback",
+    explanationEvidence: null,
   };
 }
 
@@ -172,7 +156,8 @@ export function matchContractors(contractors: Contractor[], input: SearchInput):
     }
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
-  const results = eligible.slice(0, 3).map((contractor) => cardFor(contractor, input));
+  const top3 = eligible.slice(0, 3);
+  const results = top3.map((contractor) => cardFor(contractor, top3, input));
   const shortfall = results.length < 3
     ? {
         requested: 3 as const,

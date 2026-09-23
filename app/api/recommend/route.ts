@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { loadContractors } from "@/lib/catalog";
 import { matchContractors } from "@/lib/match";
 import { createSearchSchema } from "@/lib/search";
+import { resolveExplanations } from "@/lib/explanations";
+import { requestExplanations } from "@/lib/openai";
 
 export const runtime = "nodejs";
 
@@ -29,7 +31,31 @@ export async function POST(request: Request) {
     }
 
     const result = matchContractors(contractors, parsed.data);
-    return NextResponse.json(result);
+    if (result.status !== "matched") {
+      return NextResponse.json(result, { headers: { "X-AI-Attempts": "0", "X-AI-Retry": "false", "X-AI-Verified": "0" } });
+    }
+    const profiles = new Map(contractors.map((contractor) => [contractor.id, contractor]));
+    const top3 = result.results.map((card) => profiles.get(card.id)!);
+    const ai = await requestExplanations(top3, parsed.data);
+    const verified = new Map(resolveExplanations(top3, ai.rawOutput).map((item) => [item.id, item]));
+    const results = result.results.map((card) => {
+      const addition = verified.get(card.id);
+      if (addition?.explanationSource !== "ai") return card;
+      return {
+        ...card,
+        explanation: `${card.explanation} ${addition.distinctiveFact}`,
+        explanationSource: "ai" as const,
+        explanationEvidence: addition.evidence,
+      };
+    });
+    return NextResponse.json({ ...result, results }, {
+      headers: {
+        "X-AI-Attempts": String(ai.attempts),
+        "X-AI-Retry": String(ai.retried),
+        "X-AI-Verified": String(results.filter((card) => card.explanationSource === "ai").length),
+        "Server-Timing": `ai;dur=${ai.elapsedMs}`,
+      },
+    });
   } catch {
     return NextResponse.json(
       { error: "Не удалось обработать каталог. Повторите запрос позже." },
