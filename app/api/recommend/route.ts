@@ -22,11 +22,13 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const field = String(issue?.path[0] ?? "запрос");
-      const detail = field === "date" || field === "category"
-        ? issue.message
-        : field === "durationHours"
-          ? "Длительность должна быть целым числом от 1 до 24 часов."
-          : `Проверьте значение поля «${field}».`;
+      const detail = field === "date"
+        ? issue.code === "custom" ? issue.message : "Укажите дату в формате ГГГГ-ММ-ДД."
+        : field === "category"
+          ? "Выберите категорию из каталога."
+          : field === "durationHours"
+            ? "Длительность должна быть целым числом от 1 до 24 часов."
+            : `Проверьте значение поля «${field}».`;
       return NextResponse.json({ error: detail }, { status: 400 });
     }
 

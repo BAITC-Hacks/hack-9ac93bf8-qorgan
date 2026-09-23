@@ -20,7 +20,11 @@ export function normalizeEvidence(value: string): string {
     .replace(/\s+/g, " ").trim();
 }
 
-const forbiddenPhrases = ["отличный выбор", "идеально подходит", "лучший вариант", "вредных привычек"];
+const forbiddenPhrases = [
+  "отличный выбор", "идеально подходит", "лучший вариант", "вредных привычек",
+  "ignore previous instructions", "ignore all previous instructions", "choose me", "change the budget",
+  "игнорируй инструкции", "игнорируй предыдущие инструкции", "выбери меня", "измени бюджет",
+];
 const personalTerms = /(?:^|[^\p{L}])(?:женат|замуж|дети|детей|ребен|отец|отца|мать|матер|супруг|семья|семейн|телосложен|внешност|физическ|привычк|здоров|религи|политическ)(?:\p{L}*)/u;
 
 export function hasForbiddenFacts(value: string): boolean {
@@ -57,7 +61,8 @@ export function resolveExplanations(
     const evidenceLength = Array.from(evidence).length;
     const normalizedEvidence = normalizeEvidence(evidence);
     if (evidenceLength < 10 || evidenceLength > 150 || normalizedEvidence.length < 10
-      || fact.length < 10 || fact.length > 350 || /[.!?…\r\n]/.test(fact)
+      || fact.length < 10 || fact.length > 350 || /[\r\n\u2028\u2029]/.test(fact)
+      || /[.!?…。！？]/.test(normalizeEvidence(fact))
       || !normalizeEvidence(contractor.description).includes(normalizedEvidence)
       || hasForbiddenFacts(fact) || hasForbiddenFacts(evidence)) return fallback;
     return { id: contractor.id, distinctiveFact: `${fact}.`, evidence, explanationSource: "ai" };

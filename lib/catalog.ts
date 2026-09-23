@@ -45,17 +45,18 @@ export function parseContractorsCsv(csv: string): Contractor[] {
     skipEmptyLines: true,
   });
 
-  if (parsed.errors.length > 0 || columns.some((field) => !parsed.meta.fields?.includes(field))) {
+  if (parsed.errors.length > 0 || !parsed.data.length || columns.some((field) => !parsed.meta.fields?.includes(field))) {
     throw new Error("Неверный формат CSV каталога.");
   }
 
   const ids = new Set<string>();
   return parsed.data.map((row, index) => {
     const line = index + 2;
-    if (!row.id?.trim() || ids.has(row.id)) {
+    const id = row.id?.trim();
+    if (!id || ids.has(id)) {
       throw new Error(`Строка ${line}: пустой или повторяющийся id.`);
     }
-    ids.add(row.id);
+    ids.add(id);
     if (!row.anon_name?.trim() || !row.description?.trim()) {
       throw new Error(`Строка ${line}: отсутствует имя или описание.`);
     }
@@ -71,7 +72,7 @@ export function parseContractorsCsv(csv: string): Contractor[] {
     }
 
     return {
-      id: row.id.trim(),
+      id,
       anon_name: row.anon_name.trim(),
       categories,
       city: row.city,
