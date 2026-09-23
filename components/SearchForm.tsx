@@ -167,11 +167,11 @@ export default function SearchForm({ categories, formatsById }: { categories: st
             <StatusBanner result={result} city={state.input.city} category={state.input.category} />
             {result.availabilityNote && (
               <aside className="availability-note">
-                <h3><span aria-hidden="true">📅</span> Влияние даты</h3>
+                <h3>Влияние даты</h3>
                 <p>{result.availabilityNote}</p>
               </aside>
             )}
-            {rankingText && <p className="ranking-note"><span aria-hidden="true">ⓘ</span> {rankingText}</p>}
+            {rankingText && <p className="ranking-note">{rankingText}</p>}
             <Funnel pipeline={result.pipeline} />
             {result.results.length > 0 && (
               <div className="cards">

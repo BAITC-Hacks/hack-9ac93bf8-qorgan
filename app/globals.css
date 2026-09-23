@@ -48,7 +48,7 @@ h3 { font-size: 17px; margin: 0; }
 .position { color: #12634b; }
 .card-price { font-size: 22px; font-weight: 700; margin: 0; }
 .explanation-heading { font-size: 14px; font-weight: 700; margin: 20px 0 0; }
-.explanation-source, .evidence { margin: 12px 0 0; font-size: 13px; color: #52665b; line-height: 1.6; }
+.evidence { margin: 12px 0 0; font-size: 13px; color: #52665b; line-height: 1.6; }
 .evidence { white-space: pre-wrap; }
 .card-footer { border-top: 1px solid #e3e8e5; margin-top: 16px; padding-top: 4px; }
 .availability-note { margin: 16px 0; padding: 16px 20px; border-left: 3px solid #367b91; background: #edf6fa; }

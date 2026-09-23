@@ -21,7 +21,7 @@ export default function StatusBanner({ result, city, category }: {
     : result.status === "no_category" ? `В городе ${city} нет категории «${category}»` : "Кандидаты есть, но никто не подходит";
   return (
     <div className={`status-banner status-${variant}`} role="status" aria-live="polite">
-      <h2><span aria-hidden="true">{matched ? (short ? "◐" : "✓") : result.status === "no_category" ? "○" : "!"}</span> {heading}</h2>
+      <h2>{heading}</h2>
       <p>{result.shortfall?.explanation ?? result.message}</p>
       {result.status === "no_eligible" && (
         <ul className="reason-chips" aria-label="Причины отсева">
