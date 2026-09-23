@@ -29,7 +29,7 @@ function credentials(t: TestContext, key?: string, model?: string) {
 
 async function fallbackResponse() {
   const response = await POST(new Request("http://localhost/api/recommend", {
-    method: "POST", body: JSON.stringify(input),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
   }));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), baseline);
@@ -102,7 +102,7 @@ test("successful responses are cached by normalized request, model and profile d
     }],
   }));
   const call = (body: unknown) => POST(new Request("http://localhost/api/recommend", {
-    method: "POST", body: JSON.stringify(body),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }));
   const first = await call(input);
   const firstBody = await first.json();

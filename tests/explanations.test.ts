@@ -171,3 +171,13 @@ test("single-result A2 and B contain price, budget and reserve without compariso
     assert.doesNotMatch(text, /самый|лучший|остальных|среди|отличие|выдач/);
   }
 });
+test("equal-price bands have distinct grounded calendar explanations without changing their order", () => {
+  const profiles = loadContractors();
+  const result = matchContractors(profiles, {
+    city: "Алматы", date: "2026-09-23", eventType: "свадьба", category: "Лайв-бэнд", budgetKzt: 3_000_000,
+  });
+  assert.deepEqual(result.results.map((card) => card.id), ["HK-23752", "HK-83709", "HK-57480"]);
+  assert.notEqual(result.results[0].explanation, result.results[1].explanation);
+  assert.match(result.results[0].explanation, /2026-09-24: свободен/);
+  assert.match(result.results[1].explanation, /2026-09-24: занят/);
+});

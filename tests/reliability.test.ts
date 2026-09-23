@@ -9,7 +9,7 @@ import type { SearchInput } from "../lib/search";
 
 const demoC = { city: "Астана", date: "2026-09-23", eventType: "свадьба", category: "Ведущий", budgetKzt: 500_000 };
 const demoA: SearchInput = { ...demoC, city: "Астана", eventType: "свадьба", budgetKzt: 1_000_000, durationHours: 8, language: "казахский" };
-const request = (body: string) => new Request("http://localhost/api/recommend", { method: "POST", body });
+const request = (body: string) => new Request("http://localhost/api/recommend", { method: "POST", headers: { "Content-Type": "application/json" }, body });
 const row = {
   id: "test-id", anon_name: "Тестовый профиль", categories: "Ведущий", city: "Астана",
   city_imputed: "False", synthetic: "True", price_from_kzt: "100000", price_imputed: "False",
@@ -54,6 +54,19 @@ test("route rejects malformed, missing, unknown and invalid input with safe JSON
     assert.match(body.error, /[А-Яа-яЁё]/);
     assert.doesNotMatch(body.error, /stack|[A-Z]:\\|\/Users\/|OPENAI_|sk-/i);
   }
+});
+
+test("route rejects non-JSON content types and excessive budgets before matching", async () => {
+  for (const contentType of ["text/plain", "application/x-www-form-urlencoded"]) {
+    const response = await POST(new Request("http://localhost/api/recommend", {
+      method: "POST", headers: { "Content-Type": contentType }, body: JSON.stringify(demoC),
+    }));
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /application\/json/);
+  }
+  const excessive = await POST(request(JSON.stringify({ ...demoC, budgetKzt: 1e15 })));
+  assert.equal(excessive.status, 400);
+  assert.match((await excessive.json()).error, /Бюджет/);
 });
 
 test("CSV preserves quoted commas, multiline descriptions, lists, booleans and nullable hours", () => {

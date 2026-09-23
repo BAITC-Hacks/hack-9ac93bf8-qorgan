@@ -69,7 +69,8 @@ export function resolveExplanations(
   });
 }
 
-const money = (value: number) => `${new Intl.NumberFormat("ru-RU").format(value)} ₸`;
+const moneyFormatter = new Intl.NumberFormat("ru-RU");
+const money = (value: number) => `${moneyFormatter.format(value)} ₸`;
 const ordered = (values: readonly string[]) => [...new Set(values)].sort();
 
 function differentiator(contractor: Contractor, others: readonly Contractor[], input: SearchInput): string {
@@ -102,7 +103,20 @@ function differentiator(contractor: Contractor, others: readonly Contractor[], i
 
 export function deterministicExplanation(contractor: Contractor, top3: readonly Contractor[], input: SearchInput): string {
   const reserve = input.budgetKzt - contractor.price_from_kzt;
-  return `Стоимость от ${money(contractor.price_from_kzt)} укладывается в бюджет ${money(input.budgetKzt)} и оставляет запас ${money(reserve)} от стартовой цены${
-    differentiator(contractor, top3.filter((other) => other.id !== contractor.id), input)
-  }.`;
+  const others = top3.filter((other) => other.id !== contractor.id);
+  const detail = differentiator(contractor, others, input);
+  const withoutNames = (text: string) => top3.reduce((value, profile) => value.split(profile.anon_name).join(""), text);
+  const collisions = others.filter((other) => other.price_from_kzt === contractor.price_from_kzt
+    && withoutNames(differentiator(other, top3.filter((profile) => profile.id !== other.id), input)) === withoutNames(detail));
+  // Equal prices and formats can hide different calendars; explain an actual differing date.
+  const dates = ordered(collisions.flatMap((other) => {
+    const differing = ordered([...contractor.busy_dates, ...other.busy_dates])
+      .filter((date) => contractor.busy_dates.includes(date) !== other.busy_dates.includes(date));
+    const date = differing.find((value) => value > input.date) ?? differing[0];
+    return date ? [date] : [];
+  }));
+  const calendar = dates.length
+    ? `; календарь на другие даты: ${dates.map((date) => `${date}: ${contractor.busy_dates.includes(date) ? "занят" : "свободен"}`).join(", ")}`
+    : collisions.length ? `; идентификатор профиля ${contractor.id}, структурированное объяснение совпадает с другим профилем` : "";
+  return `Стоимость от ${money(contractor.price_from_kzt)} укладывается в бюджет ${money(input.budgetKzt)} и оставляет запас ${money(reserve)} от стартовой цены${detail}${calendar}.`;
 }

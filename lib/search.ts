@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const MAX_BUDGET_KZT = 1_000_000_000_000;
+
 const validDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -25,7 +27,7 @@ const searchSchema = z
       "день рождения",
     ]),
     category: z.string().trim().min(1).max(100),
-    budgetKzt: z.number().int().positive().safe(),
+    budgetKzt: z.number().int().positive().safe().max(MAX_BUDGET_KZT),
     durationHours: z.number().int().min(1).max(24).optional(),
     language: z.enum(["русский", "казахский", "английский"]).optional(),
   })

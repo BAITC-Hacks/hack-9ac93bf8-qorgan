@@ -9,6 +9,9 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
+    if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") {
+      return NextResponse.json({ error: "Ожидается Content-Type: application/json." }, { status: 400 });
+    }
     let body: unknown;
     try {
       body = await request.json();
@@ -28,6 +31,8 @@ export async function POST(request: Request) {
           ? "Выберите категорию из каталога."
           : field === "durationHours"
             ? "Длительность должна быть целым числом от 1 до 24 часов."
+            : field === "budgetKzt"
+              ? "Бюджет должен быть целым числом от 1 до 1 000 000 000 000 ₸."
             : `Проверьте значение поля «${field}».`;
       return NextResponse.json({ error: detail }, { status: 400 });
     }
