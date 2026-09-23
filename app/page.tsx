@@ -3,10 +3,13 @@ import { loadContractors } from "@/lib/catalog";
 
 export default function Home() {
   let categories: string[] = [];
+  let formatsById: Record<string, string[]> = {};
   let catalogError = false;
   try {
-    categories = [...new Set(loadContractors().flatMap((contractor) => contractor.categories))]
+    const contractors = loadContractors();
+    categories = [...new Set(contractors.flatMap((contractor) => contractor.categories))]
       .sort((a, b) => a.localeCompare(b, "ru"));
+    formatsById = Object.fromEntries(contractors.map((contractor) => [contractor.id, contractor.event_formats]));
   } catch {
     catalogError = true;
   }
@@ -23,8 +26,9 @@ export default function Home() {
       <header className="page-header">
         <span className="brand">Qorgan</span>
         <h1>Подбор подрядчиков</h1>
+        <p className="page-intro">До 3 свободных подрядчиков под ваш запрос с объяснением, почему именно они.</p>
       </header>
-      <SearchForm categories={categories} />
+      <SearchForm categories={categories} formatsById={formatsById} />
     </main>
   );
 }
