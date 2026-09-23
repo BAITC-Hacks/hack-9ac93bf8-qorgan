@@ -63,7 +63,7 @@ Next.js App Router, React, TypeScript strict, Tailwind CSS, Zod, PapaParse, Open
 ## Установка и запуск
 
 ```powershell
-npm install
+npm ci
 Copy-Item .env.example .env.local
 npm run dev
 ```
@@ -120,11 +120,21 @@ Live smoke Demo A 23.09.2026: HTTP 200, модель `gpt-5.4-mini`, 3 пров�
 
 Проверенный результат: HTTP 200, `no_eligible`, `over_budget=5`, минимальная цена 600 000 ₸. Добавление `unexpectedField` даёт HTTP 400. `no_category` и `no_eligible` обходят AI даже при настроенных credentials.
 
-## Известные ограничения и деплой
+## Deployment
 
-Нет бронирования, базы данных, авторизации и semantic ranking. Проверка evidence подтверждает наличие цитаты, но не является полной семантической проверкой каждого утверждения модели; deny-list также не покрывает все возможные перефразирования личных сведений. При неразличимых структурированных параметрах fallback честно сообщает об отсутствии основания выделять профиль. Стартовая цена не является окончательной сметой. Timeout проверен на контролируемом offline-транспорте; live smoke прошёл с первой попытки, реальный сбой сервиса в нём не воспроизводился. Браузерная поверхность недоступна: пользователю остаётся ручная визуальная проверка Demo A и Demo C с пустыми длительностью и языком. Деплой и URL ещё отсутствуют.
+Production: https://qorgan-xi.vercel.app
 
-Final clean-clone gate deferred until after deploy: полный clean clone/reinstall в этой фазе не выполнялся. На этапе Vercel нужно проверить, что `POST /api/recommend` видит `data/contractors.csv`, который читается через server-side filesystem. Если CSV отсутствует в serverless bundle, тогда потребуется минимальный `outputFileTracingIncludes`; заранее `next.config.ts` не изменялся.
+Hosting: Vercel, проект `maxots-projects/qorgan`. Публичный stable alias проверен 23.09.2026: GET `/` возвращает HTTP 200 без redirect, Vercel login или Deployment Protection. CSV доступен странице и `POST /api/recommend`; дополнительная настройка file tracing не потребовалась.
+
+Для AI в Production настроены `OPENAI_API_KEY` (Secret) и `OPENAI_MODEL=gpt-5.4-mini`. Ключ используется только сервером. При отсутствии credentials, ошибке API или отклонённом evidence сохраняются детерминированные рекомендации и fallback-объяснения.
+
+На публичном API прошли A/A2/B/C/no_category; все бизнес-поля совпали с локальным matcher. Demo A: `HK-26808`, `HK-37181`, `HK-80581`, catalog=5, eligible=4; полная latency **4353 мс**. Повторный AI smoke: **3973 мс**, `X-AI-Attempts: 1`, `X-AI-Retry: false`, `X-AI-Verified: 2`. В обоих запросах две карточки получили проверенное AI-дополнение, одна сохранила fallback; порядок не изменился. Это отдельные фактические замеры, не гарантия latency. Принятое evidence найдено в description; объяснения содержат 1–2 предложения.
+
+Для воспроизводимого запуска из чистого клона используйте `npm ci`, затем команды из раздела «Проверки» и `npm run start`. Без env-файла и OpenAI credentials Demo A должен вернуть те же три ID с `explanationSource: "fallback"`.
+
+## Известные ограничения
+
+Нет бронирования, базы данных, авторизации и semantic ranking. Проверка evidence подтверждает наличие цитаты, но не является полной семантической проверкой каждого утверждения модели; deny-list также не покрывает все возможные перефразирования личных сведений. При неразличимых структурированных параметрах fallback честно сообщает об отсутствии основания выделять профиль. Стартовая цена не является окончательной сметой. Timeout проверен на контролируемом offline-транспорте; live smoke прошёл с первой попытки, реальный сбой сервиса в нём не воспроизводился. Браузерная поверхность недоступна: пользователю остаётся ручная визуальная проверка Demo A и Demo C с пустыми длительностью и языком.
 
 ## Dependency report
 
