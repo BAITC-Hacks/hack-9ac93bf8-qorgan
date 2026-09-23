@@ -110,7 +110,7 @@ function availabilityNoteFor(
   const notes = displaced.map((profile) =>
     `Профиль ${label(profile)} прошёл бы по всем условиям и вошёл бы в тройку, но занят ${date}.`);
   if (others.length) {
-    notes.push(`Ещё ${others.length} подходят по остальным условиям, но заняты ${date}: ${others.map(label).join(", ")}.`);
+    notes.push(`Другие профили (${others.length}) подходят по остальным условиям, но заняты ${date}: ${others.map(label).join(", ")}.`);
   }
   return notes.join(" ");
 }
@@ -193,7 +193,7 @@ export function matchContractors(contractors: Contractor[], input: SearchInput):
     ? {
         requested: 3 as const,
         found: results.length,
-        explanation: `Найдено ${results.length} из 3 вариантов. В городе ${input.city} всего ${catalog.length} профилей категории «${input.category}». ${reasonSummary(rejected)}`,
+        explanation: `Найдено ${results.length} из 3 вариантов. Всего профилей категории «${input.category}» в городе ${input.city}: ${catalog.length}. ${reasonSummary(rejected)}`,
       }
     : null;
   return {

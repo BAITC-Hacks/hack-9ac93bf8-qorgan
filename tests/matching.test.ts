@@ -141,7 +141,7 @@ test("D2 distinguishes busy-only displacement from other busy and multi-reason p
   const result = matchContractors(contractors, { ...demoD, date: "2026-10-10" });
   assert.deepEqual(result.results.map((card) => card.id), ["HK-88430", "HK-29829", "HK-27222"]);
   assert.match(result.availabilityNote!, /Мицури Канроджи.*вошёл бы в тройку.*10 октября/);
-  assert.match(result.availabilityNote!, /Ещё 2.*Кики.*Буллма/);
+  assert.match(result.availabilityNote!, /Другие профили \(2\).*Кики.*Буллма/);
   assert.doesNotMatch(result.availabilityNote!, /Эмилия/);
   assert.deepEqual(result.rejected.find((item) => item.id === "HK-42352")?.reasons, ["busy", "format"]);
 });
@@ -183,5 +183,5 @@ test("all six live presets validate and produce the real CSV outcomes without op
   assert.equal(rare.results[0].price_imputed, true);
   assert.equal(rare.results[0].synthetic, false);
   assert.equal(rare.results[1].synthetic, true);
-  assert.match(rare.shortfall!.explanation, /Алматы всего 2 профилей категории «Флорист»/);
+  assert.match(rare.shortfall!.explanation, /Всего профилей категории «Флорист» в городе Алматы: 2/);
 });
