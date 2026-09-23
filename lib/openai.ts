@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { createHash } from "node:crypto";
 import { zodTextFormat } from "openai/helpers/zod";
 import { aiResponseSchema } from "./explanations";
 import { explanationSystemPrompt } from "./prompts";
@@ -10,7 +11,11 @@ type AIRequestResult = {
   attempts: number;
   retried: boolean;
   elapsedMs: number;
+  cacheHit: boolean;
 };
+
+const explanationCache = new Map<string, unknown>();
+const cacheLimit = 200;
 
 export async function requestExplanations(
   top3: readonly Contractor[],
@@ -19,8 +24,8 @@ export async function requestExplanations(
   const start = performance.now();
   const deadline = start + 7000;
   let attempts = 0;
-  const result = (rawOutput: unknown = null): AIRequestResult => ({
-    rawOutput, attempts, retried: attempts > 1, elapsedMs: Math.round(performance.now() - start),
+  const result = (rawOutput: unknown = null, cacheHit = false): AIRequestResult => ({
+    rawOutput, attempts, retried: attempts > 1, elapsedMs: Math.round(performance.now() - start), cacheHit,
   });
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   const model = process.env.OPENAI_MODEL?.trim();
@@ -39,6 +44,10 @@ export async function requestExplanations(
         id, anon_name, price_from_kzt, event_formats, languages, max_hours, description,
       })),
     };
+    const cacheKey = createHash("sha256")
+      .update(JSON.stringify([model, input.city, input.date, payload])).digest("hex");
+    const cached = explanationCache.get(cacheKey);
+    if (cached !== undefined) return result(structuredClone(cached), true);
     const format = zodTextFormat(aiResponseSchema, "contractor_explanations");
     while (attempts < 2 && !controller.signal.aborted) {
       const remaining = deadline - performance.now();
@@ -57,6 +66,11 @@ export async function requestExplanations(
         }, { signal: controller.signal, timeout: Math.ceil(remaining), maxRetries: 0 });
         if (controller.signal.aborted || performance.now() >= deadline) break;
         if (response.status === "completed" && response.output_parsed !== null) {
+          // Cache only completed structured responses; route still verifies every evidence quote.
+          if (explanationCache.size >= cacheLimit) {
+            explanationCache.delete(explanationCache.keys().next().value!);
+          }
+          explanationCache.set(cacheKey, structuredClone(response.output_parsed));
           return result(response.output_parsed);
         }
       } catch {

@@ -4,6 +4,7 @@ import { POST } from "../app/api/recommend/route";
 import { loadContractors } from "../lib/catalog";
 import { matchContractors } from "../lib/match";
 import type { SearchInput } from "../lib/search";
+import { requestExplanations } from "../lib/openai";
 
 const input: SearchInput = {
   city: "Астана", date: "2026-09-23", eventType: "свадьба", category: "Ведущий",
@@ -87,4 +88,63 @@ test("shared seven-second deadline aborts a stalled transport and returns unchan
   assert.equal(response.headers.get("X-AI-Attempts"), "1");
   assert.equal(response.headers.get("X-AI-Retry"), "false");
   assert.ok(elapsed >= 6900 && elapsed < 8500, `Deadline elapsed: ${elapsed}`);
+});
+
+test("successful responses are cached by normalized request, model and profile data, with evidence rechecked", async (t) => {
+  credentials(t, "test-only-not-a-real-key", "cache-test-model");
+  const output = { explanations: [{
+    id: "HK-26808", distinctiveFact: "Резидент авторской группы", evidence: "Резидент авторской группы",
+  }] };
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({
+    id: "offline-cache", object: "response", status: "completed", output: [{
+      type: "message", role: "assistant", status: "completed",
+      content: [{ type: "output_text", text: JSON.stringify(output), annotations: [] }],
+    }],
+  }));
+  const call = (body: unknown) => POST(new Request("http://localhost/api/recommend", {
+    method: "POST", body: JSON.stringify(body),
+  }));
+  const first = await call(input);
+  const firstBody = await first.json();
+  assert.equal(first.headers.get("X-AI-Cache"), "miss");
+  assert.equal(first.headers.get("X-AI-Verified"), "1");
+  assert.equal(firstBody.results[0].explanationSource, "ai");
+  assert.ok(firstBody.results.slice(1).every((card: { explanationSource: string }) => card.explanationSource === "fallback"));
+  const repeat = await call({ ...Object.fromEntries(Object.entries(input).reverse()), category: " Ведущий " });
+  assert.deepEqual(await repeat.json(), firstBody);
+  assert.equal(repeat.headers.get("X-AI-Cache"), "hit");
+  assert.equal(repeat.headers.get("X-AI-Attempts"), "0");
+  assert.equal(repeat.headers.get("X-AI-Retry"), "false");
+  assert.equal(repeat.headers.get("X-AI-Verified"), "1");
+  assert.equal(fetch.mock.callCount(), 1);
+
+  const profiles = baseline.results.map((card) => loadContractors().find((profile) => profile.id === card.id)!);
+  const cached = await requestExplanations(profiles, input);
+  (cached.rawOutput as typeof output).explanations[0].distinctiveFact = "changed";
+  assert.deepEqual((await requestExplanations(profiles, input)).rawOutput, output);
+  assert.equal((await requestExplanations(profiles, { ...input, date: "2026-09-24" })).cacheHit, false);
+  assert.equal((await requestExplanations(profiles.map((profile) => ({ ...profile, description: profile.description + " " })), input)).cacheHit, false);
+  process.env.OPENAI_MODEL = "another-cache-test-model";
+  assert.equal((await requestExplanations(profiles, input)).cacheHit, false);
+  delete process.env.OPENAI_API_KEY;
+  assert.equal((await requestExplanations(profiles, input)).rawOutput, null);
+  assert.equal(fetch.mock.callCount(), 4);
+});
+
+test("AI cache evicts the oldest entry at the 200-entry limit", async (t) => {
+  credentials(t, "test-only-not-a-real-key", "bounded-cache-test-model");
+  const fetch = t.mock.method(globalThis, "fetch", async () => Response.json({
+    id: "offline-bounded-cache", object: "response", status: "completed", output: [{
+      type: "message", role: "assistant", status: "completed",
+      content: [{ type: "output_text", text: JSON.stringify({ explanations: [] }), annotations: [] }],
+    }],
+  }));
+  const profiles = [loadContractors()[0]];
+  for (let index = 0; index < 201; index++) {
+    assert.equal((await requestExplanations(profiles, { ...input, budgetKzt: 2_000_000 + index })).cacheHit, false);
+  }
+  assert.equal(fetch.mock.callCount(), 201);
+  assert.equal((await requestExplanations(profiles, { ...input, budgetKzt: 2_000_200 })).cacheHit, true);
+  assert.equal((await requestExplanations(profiles, { ...input, budgetKzt: 2_000_000 })).cacheHit, false);
+  assert.equal(fetch.mock.callCount(), 202);
 });

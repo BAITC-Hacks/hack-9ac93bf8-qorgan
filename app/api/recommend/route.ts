@@ -55,6 +55,7 @@ export async function POST(request: Request) {
         "X-AI-Attempts": String(ai.attempts),
         "X-AI-Retry": String(ai.retried),
         "X-AI-Verified": String(results.filter((card) => card.explanationSource === "ai").length),
+        "X-AI-Cache": ai.cacheHit ? "hit" : "miss",
         "Server-Timing": `ai;dur=${ai.elapsedMs}`,
       },
     });
