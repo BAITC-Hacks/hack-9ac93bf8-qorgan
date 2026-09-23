@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import type { RejectionReason, SearchResponse } from "@/lib/types";
+import { demoPresets } from "@/lib/demo-presets";
+import type { SearchInput } from "@/lib/search";
 
 type State =
   | { kind: "idle" }
@@ -32,6 +34,19 @@ const pipelineLabels = [
 
 export default function SearchForm({ categories }: { categories: string[] }) {
   const [state, setState] = useState<State>({ kind: "idle" });
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function runPreset(input: SearchInput) {
+    const form = formRef.current;
+    if (!form || state.kind === "loading") return;
+    for (const name of ["city", "date", "eventType", "category", "budgetKzt", "durationHours", "language"] as const) {
+      const field = form.elements.namedItem(name);
+      if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) {
+        field.value = String(input[name] ?? "");
+      }
+    }
+    form.requestSubmit();
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,7 +94,14 @@ export default function SearchForm({ categories }: { categories: string[] }) {
 
   return (
     <>
-      <form className="search-form" onSubmit={submit} noValidate>
+      <div className="demo-presets" role="group" aria-label="Демо-запросы">
+        {demoPresets.map((preset) => (
+          <button key={preset.label} type="button" onClick={() => runPreset(preset.input)} disabled={state.kind === "loading"}>
+            {preset.label}
+          </button>
+        ))}
+      </div>
+      <form ref={formRef} className="search-form" onSubmit={submit} noValidate>
         <label>Город
           <select name="city" defaultValue="" required>
             <option value="">Выберите город</option>

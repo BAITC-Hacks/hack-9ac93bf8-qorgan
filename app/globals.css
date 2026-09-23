@@ -16,6 +16,11 @@ button, input, select { font: inherit; }
 h1 { font-size: 28px; margin: 8px 0 0; }
 h2 { font-size: 21px; margin: 0 0 12px; }
 h3 { font-size: 17px; margin: 0; }
+.demo-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.demo-presets button { min-height: 36px; max-width: 100%; border: 1px solid #aebdb6; border-radius: 4px; padding: 7px 10px; background: white; color: #17241f; font-size: 14px; cursor: pointer; overflow-wrap: anywhere; }
+.demo-presets button:hover { background: #eaf0ed; }
+.demo-presets button:focus-visible { outline: 2px solid #168765; outline-offset: 2px; }
+.demo-presets button:disabled { opacity: 0.65; cursor: wait; }
 .search-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; align-items: end; }
 .search-form label { display: grid; gap: 6px; font-size: 14px; font-weight: 600; min-width: 0; }
 .search-form input, .search-form select { width: 100%; min-width: 0; height: 40px; border: 1px solid #aebdb6; border-radius: 4px; padding: 0 10px; background: white; color: #17241f; }

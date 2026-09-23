@@ -3,6 +3,7 @@ import test from "node:test";
 import { loadContractors } from "../lib/catalog";
 import { matchContractors } from "../lib/match";
 import { createSearchSchema, type SearchInput } from "../lib/search";
+import { demoPresets } from "../lib/demo-presets";
 
 const contractors = loadContractors();
 const searchSchema = createSearchSchema(new Set(contractors.flatMap((contractor) => contractor.categories)));
@@ -163,4 +164,24 @@ test("availability notes include busy-only candidates outside the hypothetical t
   for (const profile of result.rejected.filter((item) => item.reasons.length > 1)) {
     assert.ok(!result.availabilityNote?.includes(profile.anon_name));
   }
+});
+
+test("all six live presets validate and produce the real CSV outcomes without optional fields", () => {
+  const expected = [
+    ["HK-88430", "HK-44923", "HK-35215"], ["HK-88430", "HK-29829", "HK-27222"],
+    ["HK-39372", "HK-90001"], [], [], [],
+  ];
+  assert.equal(demoPresets.length, 6);
+  for (const [index, { input }] of demoPresets.entries()) {
+    assert.equal(searchSchema.safeParse(input).success, true);
+    assert.ok(!("durationHours" in input) && !("language" in input));
+    const result = matchContractors(contractors, input);
+    assert.deepEqual(result.results.map((card) => card.id), expected[index]);
+    assert.equal(result.status, index < 3 ? "matched" : index === 5 ? "no_category" : "no_eligible");
+  }
+  const rare = matchContractors(contractors, demoPresets[2].input);
+  assert.equal(rare.results[0].price_imputed, true);
+  assert.equal(rare.results[0].synthetic, false);
+  assert.equal(rare.results[1].synthetic, true);
+  assert.match(rare.shortfall!.explanation, /Алматы всего 2 профилей категории «Флорист»/);
 });
